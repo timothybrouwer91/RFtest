@@ -56,9 +56,15 @@ const state = {
   selectedDifficulty: "",
   calculatorInput: "",
   startTimeMs: 0,
+  questionAdvanceTimeout: null,
+  isTransitioning: false,
 };
 
 function safeParseJSON(raw, fallback) {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    return fallback;
+  }
+
   try {
     const parsed = JSON.parse(raw);
     return parsed ?? fallback;
@@ -67,9 +73,34 @@ function safeParseJSON(raw, fallback) {
   }
 }
 
+function hasValidDifficultyBuckets(questionBank) {
+  return Boolean(
+    questionBank
+      && Array.isArray(questionBank.easy)
+      && Array.isArray(questionBank.medium)
+      && Array.isArray(questionBank.hard)
+  );
+}
+
+function validateQuestionBank(questionBank) {
+  if (!hasValidDifficultyBuckets(questionBank)) {
+    throw new Error("Question bank must include easy, medium, and hard arrays.");
+  }
+
+  return {
+    easy: validateQuestions(questionBank.easy),
+    medium: validateQuestions(questionBank.medium),
+    hard: validateQuestions(questionBank.hard),
+  };
+}
+
 function getQuestionBank() {
   const stored = safeParseJSON(localStorage.getItem(QUESTION_KEY), null);
-  return stored || window.MATH_QUESTIONS;
+  if (hasValidDifficultyBuckets(stored)) {
+    return stored;
+  }
+
+  return window.MATH_QUESTIONS;
 }
 
 function setQuestionBank(questionBank) {
@@ -130,6 +161,24 @@ function shuffleQuestions(questions) {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
+}
+
+function downloadBlob(content, type, filename) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function createTextCell(text) {
+  const cell = document.createElement("td");
+  cell.textContent = text;
+  return cell;
 }
 
 function getSelectedChoiceValue() {
@@ -272,13 +321,13 @@ function loadDashboard() {
       ? `${formatPercent(record.percent)} (${record.correctAnswers}/${record.totalQuestions})`
       : formatPercent(record.percent);
 
-    row.innerHTML = `
-      <td>${record.name}</td>
-      <td>${record.date}</td>
-      <td>${record.difficulty}</td>
-      <td>${scoreText}</td>
-      <td>${record.timeSeconds}s</td>
-    `;
+    row.append(
+      createTextCell(record.name),
+      createTextCell(record.date),
+      createTextCell(record.difficulty),
+      createTextCell(scoreText),
+      createTextCell(`${record.timeSeconds}s`)
+    );
 
     fragment.append(row);
   });
@@ -302,14 +351,7 @@ function exportCandidateData() {
   });
 
   const csv = [header, ...body].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "candidate-results.csv";
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(link.href);
+  downloadBlob(csv, "text/csv;charset=utf-8", "candidate-results.csv");
 }
 
 function showQuestion() {
@@ -329,12 +371,20 @@ function renderReview() {
   state.answers.forEach((entry, idx) => {
     const item = document.createElement("li");
     item.className = `review-item ${entry.correct ? "correct" : "incorrect"}`;
-    item.innerHTML = `
-      <p><strong>Q${idx + 1}:</strong> ${entry.question}</p>
-      <p>Your answer: <strong>${entry.userAnswer}</strong></p>
-      <p>Correct answer: <strong>${entry.correctAnswer}</strong></p>
-      <p>${entry.correct ? "✅ Correct" : "❌ Incorrect"}</p>
-    `;
+
+    const question = document.createElement("p");
+    question.textContent = `Q${idx + 1}: ${entry.question}`;
+
+    const userAnswer = document.createElement("p");
+    userAnswer.textContent = `Your answer: ${entry.userAnswer}`;
+
+    const correctAnswer = document.createElement("p");
+    correctAnswer.textContent = `Correct answer: ${entry.correctAnswer}`;
+
+    const result = document.createElement("p");
+    result.textContent = entry.correct ? "✅ Correct" : "❌ Incorrect";
+
+    item.append(question, userAnswer, correctAnswer, result);
     fragment.append(item);
   });
 
@@ -355,15 +405,7 @@ function downloadResultsFile() {
 
   const summary = `"Score","${state.score}/${state.questions.length}","",""`;
   const csv = [header, ...lines, summary].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "math-quiz-results.csv";
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  downloadBlob(csv, "text/csv;charset=utf-8", "math-quiz-results.csv");
 }
 
 function getTimeTakenSeconds() {
@@ -388,6 +430,7 @@ function saveCandidateResult() {
 }
 
 function finishQuiz() {
+  clearQuestionTransition();
   ui.card.hidden = true;
   ui.result.hidden = false;
   ui.finalScore.textContent = `You answered ${state.score} out of ${state.questions.length} correctly.`;
@@ -405,14 +448,31 @@ function nextQuestion() {
   showQuestion();
 }
 
+function clearQuestionTransition() {
+  if (state.questionAdvanceTimeout !== null) {
+    clearTimeout(state.questionAdvanceTimeout);
+    state.questionAdvanceTimeout = null;
+  }
+}
+
 function startQuiz(difficulty) {
+  clearQuestionTransition();
+  state.isTransitioning = false;
   state.index = 0;
   state.score = 0;
   state.answers = [];
   state.selectedDifficulty = difficulty;
 
   const questionBank = getQuestionBank();
-  state.questions = shuffleQuestions(validateQuestions(questionBank[difficulty]));
+
+  try {
+    const validQuestionBank = validateQuestionBank(questionBank);
+    const selectedQuestions = validQuestionBank[difficulty];
+    state.questions = shuffleQuestions(selectedQuestions);
+  } catch (error) {
+    showError(`Could not start quiz: ${error.message}`);
+    return;
+  }
 
   ui.startScreen.hidden = true;
   ui.result.hidden = true;
@@ -432,6 +492,8 @@ function showError(message) {
 }
 
 function resetToStart() {
+  clearQuestionTransition();
+  state.isTransitioning = false;
   ui.result.hidden = true;
   ui.card.hidden = true;
   ui.startScreen.hidden = false;
@@ -439,6 +501,10 @@ function resetToStart() {
 
 function handleAnswerSubmit(event) {
   event.preventDefault();
+
+  if (state.isTransitioning) {
+    return;
+  }
 
   const answer = getSelectedChoiceValue();
   if (answer === null) {
@@ -465,7 +531,12 @@ function handleAnswerSubmit(event) {
   }
 
   ui.score.textContent = `Score: ${state.score}`;
-  setTimeout(nextQuestion, 700);
+  state.isTransitioning = true;
+  state.questionAdvanceTimeout = window.setTimeout(() => {
+    state.isTransitioning = false;
+    state.questionAdvanceTimeout = null;
+    nextQuestion();
+  }, 700);
 }
 
 function saveQuestionFromAdmin() {
@@ -487,6 +558,11 @@ function saveQuestionFromAdmin() {
   }
 
   const questionBank = getQuestionBank();
+  if (!Array.isArray(questionBank[difficulty])) {
+    alert("Selected difficulty bucket is invalid.");
+    return;
+  }
+
   questionBank[difficulty].push({
     id: Date.now(),
     question: questionText,
@@ -500,14 +576,7 @@ function saveQuestionFromAdmin() {
 
 function exportQuestions() {
   const data = JSON.stringify(getQuestionBank(), null, 2);
-  const blob = new Blob([data], { type: "application/json" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "questions.json";
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(link.href);
+  downloadBlob(data, "application/json", "questions.json");
 }
 
 function importQuestions(event) {
@@ -525,9 +594,7 @@ function importQuestions(event) {
     }
 
     try {
-      validateQuestions(data.easy);
-      validateQuestions(data.medium);
-      validateQuestions(data.hard);
+      validateQuestionBank(data);
       setQuestionBank(data);
       alert("Questions imported!");
     } catch (error) {
@@ -582,9 +649,7 @@ function initializeEvents() {
 (function init() {
   try {
     const questionBank = getQuestionBank();
-    validateQuestions(questionBank.easy);
-    validateQuestions(questionBank.medium);
-    validateQuestions(questionBank.hard);
+    validateQuestionBank(questionBank);
 
     initializeCalculator();
     initializeAdmin();
