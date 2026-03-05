@@ -42,6 +42,7 @@ const ui = {
   statAverage: document.getElementById("stat-average"),
   statHigh: document.getElementById("stat-high"),
   exportCandidateData: document.getElementById("export-candidate-data"),
+  clearCandidateHistory: document.getElementById("clear-candidate-history"),
 };
 
 const ADMIN_PASSWORD = "RF12345678";
@@ -351,8 +352,19 @@ function exportCandidateData() {
   });
 
   const csv = [header, ...body].join("\n");
-  downloadBlob(csv, "text/csv;charset=utf-8", "candidate-results.csv");
+    downloadBlob(csv, "text/csv;charset=utf-8", "candidate-results.csv");
 }
+
+function clearCandidateHistory() {
+  const shouldClear = window.confirm("Clear all saved candidate history? This cannot be undone.");
+  if (!shouldClear) {
+    return;
+  }
+
+  setResults([]);
+  loadDashboard();
+};
+
 
 function showQuestion() {
   const question = state.questions[state.index];
@@ -626,7 +638,9 @@ function initializeAdmin() {
   ui.exportQuestions.addEventListener("click", exportQuestions);
   ui.importQuestions.addEventListener("change", importQuestions);
   ui.exportCandidateData.addEventListener("click", exportCandidateData);
-}
+  ui.clearCandidateHistory.addEventListener("click", clearCandidateHistory);
+};
+
 
 function initializeEvents() {
   ui.easyBtn.addEventListener("click", () => startQuiz("easy"));
