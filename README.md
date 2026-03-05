@@ -4,7 +4,7 @@ A lightweight, expandable quiz website for stored multiple-choice math questions
 
 ## How to run
 
-Open `index.html` directly in your browser. No localhost/server features are required.
+Open `Quiz App.html` directly in your browser. No localhost/server features are required.
 
 ## Add or remove questions
 
