@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recycle Force Skills Quiz</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="quiz-app">
+      <header class="quiz-header">
+        <div>
+          <h1>Recycle Force Skills Quiz</h1>
+          <p>Answer each question, then review your answers at the end.</p>
+        </div>
+        <button id="calculator-toggle" class="calculator-toggle" type="button">Calculator</button>
+<div>
+  <button id="admin-btn">Admin Mode</button>
+</div>
+      </header>
+
+	<section id="start-screen" class="question-card">
+	<label>Candidate Name</label>
+	<input id="candidate-name" placeholder="Enter your name">
+ 	 <h2>Select Difficulty</h2>
+ 	 <p>Choose a difficulty level to begin the quiz.</p>
+
+ 	 <div class="result-actions">
+   	 <button id="easy-btn" type="button">Easy</button>
+    	<button id="medium-btn" type="button">Medium</button>
+   	 <button id="hard-btn" type="button">Hard</button>
+ 	 </div>
+	</section>
+      <section id="calculator-panel" class="calculator-panel" hidden>
+        <div class="calculator-screen" id="calculator-screen">0</div>
+        <div class="calculator-keys">
+          <button type="button" data-calc="7">7</button>
+          <button type="button" data-calc="8">8</button>
+          <button type="button" data-calc="9">9</button>
+          <button type="button" data-calc="/">÷</button>
+
+          <button type="button" data-calc="4">4</button>
+          <button type="button" data-calc="5">5</button>
+          <button type="button" data-calc="6">6</button>
+          <button type="button" data-calc="*">×</button>
+
+          <button type="button" data-calc="1">1</button>
+          <button type="button" data-calc="2">2</button>
+          <button type="button" data-calc="3">3</button>
+          <button type="button" data-calc="-">−</button>
+
+          <button type="button" data-calc="0">0</button>
+          <button type="button" data-calc=".">.</button>
+          <button type="button" data-calc-action="clear">C</button>
+          <button type="button" data-calc="+">+</button>
+
+          <button type="button" class="equals" data-calc-action="equals">=</button>
+        </div>
+      </section>
+
+<section id="admin-panel" hidden class="quiz-app">
+  <h2>Employer Admin Mode</h2>
+
+  <div>
+    <label>Password</label>
+    <input id="admin-password" type="password">
+    <button id="admin-login">Login</button>
+  </div>
+
+  <div id="admin-editor" hidden>
+
+    <h3>Add / Edit Question</h3>
+
+    <label>Difficulty</label>
+    <select id="admin-difficulty">
+      <option value="easy">Easy</option>
+      <option value="medium">Medium</option>
+      <option value="hard">Hard</option>
+    </select>
+
+    <label>Question</label>
+    <input id="admin-question">
+
+    <label>Choice A</label>
+    <input id="choice-a">
+
+    <label>Choice B</label>
+    <input id="choice-b">
+
+    <label>Choice C</label>
+    <input id="choice-c">
+
+    <label>Choice D</label>
+    <input id="choice-d">
+
+    <label>Correct Answer</label>
+    <input id="admin-answer">
+
+    <button id="save-question">Save Question</button>
+
+    <hr>
+
+    <button id="export-questions">Export Questions</button>
+    <input type="file" id="import-questions">
+
+  </div>
+</section>
+
+<section id="dashboard" hidden class="dashboard">
+
+<h2>Employer Dashboard</h2>
+
+<div class="dashboard-stats">
+
+<div class="stat">
+<h3>Total Candidates</h3>
+<p id="stat-candidates">0</p>
+</div>
+
+<div class="stat">
+<h3>Average Score</h3>
+<p id="stat-average">0%</p>
+</div>
+
+<div class="stat">
+<h3>Highest Score</h3>
+<p id="stat-high">0%</p>
+</div>
+
+</div>
+
+<h3>Candidate Results</h3>
+
+<table class="results-table">
+
+<thead>
+<tr>
+<th>Name</th>
+<th>Date</th>
+<th>Difficulty</th>
+<th>Score</th>
+<th>Time</th>
+</tr>
+</thead>
+
+<tbody id="results-body"></tbody>
+
+</table>
+
+<button id="export-candidate-data">Export Candidate Results</button>
+
+</section>
+
+      <section id="status" class="status-bar" aria-live="polite">
+        <span id="progress">Question 1 of 1</span>
+        <span id="score">Score: 0</span>
+      </section>
+
+      <section id="card" class="question-card" hidden>
+        <h2 id="question-text"></h2>
+        <form id="answer-form">
+          <fieldset class="choice-group">
+            <legend class="label">Choose one answer</legend>
+            <div id="choice-list" class="choice-list"></div>
+          </fieldset>
+          <button type="submit">Submit</button>
+        </form>
+        <p id="feedback" class="feedback" aria-live="polite"></p>
+      </section>
+
+      <section id="result" class="result" hidden>
+        <h2>Finished 🎉</h2>
+        <p id="final-score"></p>
+
+        <h3>Answer review</h3>
+        <ol id="review-list" class="review-list"></ol>
+
+        <div class="result-actions">
+          <button id="restart-btn" type="button">Try again</button>
+          <button id="download-results-btn" type="button">Download results</button>
+        </div>
+      </section>
+
+      <section id="error" class="error" hidden>
+        <h2>Could not load questions</h2>
+        <p id="error-message"></p>
+      </section>
+    </main>
+
+    <script src="questions.js"></script>
+    <script defer src="app.js"></script>
+  </body>
+</html>
